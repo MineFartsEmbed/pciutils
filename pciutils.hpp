@@ -63,6 +63,10 @@ namespace pciutils {
     using ::pci_set_name_list_path;
     using ::pci_id_cache_flush;
 
+    bool is_off(int hex) {
+        return (hex == 0x0000) || (hex == 0xFFFF);
+    }
+
     using pci_devs = std::vector<pci_dev*>;
 
     pci_devs get_devices() {
@@ -76,6 +80,9 @@ namespace pciutils {
             if (dev->func != 0) continue;
 
             pci_fill_info(dev, PCI_FILL_IDENT | PCI_FILL_CLASS | PCI_FILL_PHYS_SLOT);
+
+            if (is_off(src->vendor_id) || is_off(src->device_id))
+                continue;
 
             dev->slot = dev->phy_slot ? std::atoi(dev->phy_slot) : -1;
 
