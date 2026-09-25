@@ -75,7 +75,9 @@ namespace pciutils {
         for (struct pci_dev *dev = pacc->devices; dev; dev = dev->next) {
             if (dev->func != 0) continue;
 
-            pci_fill_info(dev, PCI_FILL_IDENT | PCI_FILL_CLASS);
+            pci_fill_info(dev, PCI_FILL_IDENT | PCI_FILL_CLASS | PCI_FILL_PHYS_SLOT);
+
+            dev->slot = dev->phy_slot ? std::atoi(dev->phy_slot) : -1;
 
             devices.push_back(dev);
         }
