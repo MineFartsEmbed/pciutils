@@ -63,5 +63,27 @@ namespace pciutils {
     using ::pci_set_name_list_path;
     using ::pci_id_cache_flush;
 
+    using pci_devs = std::vector<pci_dev*>;
+
+    pci_devs get_devices() {
+        pci_devs devices;
+
+        struct pci_access *pacc = pci_alloc();
+        pci_init(pacc);
+        pci_scan_bus(pacc);
+
+        for (struct pci_dev *dev = pacc->devices; dev; dev = dev->next) {
+            if (dev->func != 0) continue;
+
+            pci_fill_info(dev, PCI_FILL_IDENT | PCI_FILL_CLASS);
+
+            devices.push_back(dev);
+        }
+
+        pci_cleanup(pacc);
+
+        return devices;
+    }
+
 }
 
