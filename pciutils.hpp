@@ -1,11 +1,16 @@
 #pragma once
 
+#include <vector>
+#include <cstdlib>
+
 #ifdef _WIN32
 
     #pragma comment(lib, __FILE__ "\\..\\pci.lib")
 
     #pragma comment(lib, "cfgmgr32.lib")
     #pragma comment(lib, "advapi32.lib")
+
+    #include "win.hpp"
 
 #endif
 
@@ -63,36 +68,48 @@ namespace pciutils {
     using ::pci_set_name_list_path;
     using ::pci_id_cache_flush;
 
-    bool is_off(int hex) {
-        return (hex == 0x0000) || (hex == 0xFFFF);
+    template <typename... Ints>
+    inline bool is_off(Ints... hexs) {
+        return ((hexs == 0x0000 || hexs == 0xFFFF) && ...);
     }
 
-    using pci_devs = std::vector<pci_dev*>;
+    using pci_devs = std::vector<pci_dev>;
 
-    pci_devs get_devices() {
-        pci_devs devices;
+    inline pci_devs& get_devices() {
 
-        struct pci_access *pacc = pci_alloc();
-        pci_init(pacc);
-        pci_scan_bus(pacc);
+        static pci_devs _cached_result = []() {
+            pci_devs local_list;
 
-        for (struct pci_dev *dev = pacc->devices; dev; dev = dev->next) {
-            if (dev->func != 0) continue;
+            struct pci_access *pacc = pci_alloc();
+            pci_init(pacc);
+            pci_scan_bus(pacc);
 
-            pci_fill_info(dev, PCI_FILL_IDENT | PCI_FILL_CLASS | PCI_FILL_PHYS_SLOT);
+            for (struct pci_dev *src = pacc->devices; src; src = src->next) {
 
-            if (is_off(src->vendor_id) || is_off(src->device_id))
-                continue;
+                pci_fill_info(src, PCI_FILL_IDENT | PCI_FILL_CLASS | PCI_FILL_PHYS_SLOT | PCI_FILL_IO_FLAGS);
 
-            dev->slot = dev->phy_slot ? std::atoi(dev->phy_slot) : -1;
+                if (is_off(src->vendor_id, src->device_id)) continue;
+                
+                pci_dev dst{};
+                dst.device_id = src->device_id;
+                dst.vendor_id = src->vendor_id;
+                dst.device_class = src->device_class;
+                
+                #ifdef _WIN32
+                    dst.slot = GetWindowsPcieSlotInfo(src->bus, src->dev, src->vendor_id, src->device_id);
+                #else
+                    dst.slot = src->phy_slot ? std::atoi(src->phy_slot) : -1;
+                #endif
 
-            devices.push_back(dev);
-        }
+                if (dst.slot != -1)
+                    local_list.push_back(dst);
+            }
 
-        pci_cleanup(pacc);
+            pci_cleanup(pacc);
+            return local_list;
+        }();
 
-        return devices;
+        return _cached_result;
     }
-
 }
 
