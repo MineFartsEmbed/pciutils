@@ -75,41 +75,37 @@ namespace pciutils {
 
     using pci_devs = std::vector<pci_dev>;
 
-    inline pci_devs& get_devices() {
+    inline pci_devs get_devices() {
+        pci_devs local_list;
 
-        static pci_devs _cached_result = []() {
-            pci_devs local_list;
+        struct pci_access *pacc = pci_alloc();
+        pci_init(pacc);
+        pci_scan_bus(pacc);
 
-            struct pci_access *pacc = pci_alloc();
-            pci_init(pacc);
-            pci_scan_bus(pacc);
+        for (struct pci_dev *src = pacc->devices; src; src = src->next) {
 
-            for (struct pci_dev *src = pacc->devices; src; src = src->next) {
+            pci_fill_info(src, PCI_FILL_IDENT | PCI_FILL_CLASS | PCI_FILL_PHYS_SLOT | PCI_FILL_IO_FLAGS);
 
-                pci_fill_info(src, PCI_FILL_IDENT | PCI_FILL_CLASS | PCI_FILL_PHYS_SLOT | PCI_FILL_IO_FLAGS);
+            if (is_off(src->vendor_id, src->device_id)) continue;
+            
+            pci_dev dst{};
+            dst.device_id = src->device_id;
+            dst.vendor_id = src->vendor_id;
+            dst.device_class = src->device_class;
+            
+            #ifdef _WIN32
+                dst.slot = GetWindowsPcieSlotInfo(src->bus, src->dev, src->vendor_id, src->device_id);
+            #else
+                dst.slot = src->phy_slot ? std::atoi(src->phy_slot) : -1;
+            #endif
 
-                if (is_off(src->vendor_id, src->device_id)) continue;
-                
-                pci_dev dst{};
-                dst.device_id = src->device_id;
-                dst.vendor_id = src->vendor_id;
-                dst.device_class = src->device_class;
-                
-                #ifdef _WIN32
-                    dst.slot = GetWindowsPcieSlotInfo(src->bus, src->dev, src->vendor_id, src->device_id);
-                #else
-                    dst.slot = src->phy_slot ? std::atoi(src->phy_slot) : -1;
-                #endif
+            if (dst.slot != -1)
+                local_list.push_back(dst);
+        }
 
-                if (dst.slot != -1)
-                    local_list.push_back(dst);
-            }
-
-            pci_cleanup(pacc);
-            return local_list;
-        }();
-
-        return _cached_result;
+        pci_cleanup(pacc);
+        return local_list;
     }
+
 }
 
