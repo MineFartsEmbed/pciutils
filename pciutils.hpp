@@ -94,7 +94,7 @@ namespace pciutils {
             dst.device_class = src->device_class;
             
             #ifdef _WIN32
-                dst.slot = GetWindowsPcieSlotInfo(src->bus, src->dev, src->vendor_id, src->device_id);
+                dst.slot = GetWindowsPcieSlotInfo(src->bus, src->dev);
             #else
                 dst.slot = src->phy_slot ? std::atoi(src->phy_slot) : -1;
             #endif
