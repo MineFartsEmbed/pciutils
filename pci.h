@@ -180,6 +180,7 @@ struct pci_dev {
   struct pci_cap *last_cap;		/* Last capability in the list */
 
   int slot;
+  std::string winDevId;
 
 };
 
