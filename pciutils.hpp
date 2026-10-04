@@ -87,7 +87,7 @@ namespace pciutils {
 
         for (struct pci_dev *src = pacc->devices; src; src = src->next) {
 
-            pci_fill_info(src, PCI_FILL_IDENT | PCI_FILL_CLASS | PCI_FILL_PHYS_SLOT | PCI_FILL_IO_FLAGS);
+            pci_fill_info(src, PCI_FILL_IDENT | PCI_FILL_CLASS | PCI_FILL_PHYS_SLOT | PCI_FILL_IO_FLAGS | PCI_FILL_CAPS);
 
             if (is_off(src->vendor_id, src->device_id)) continue;
             
@@ -97,14 +97,24 @@ namespace pciutils {
             dst.device_class = src->device_class;
             
             #ifdef _WIN32
+                
                 std::stringstream ss;
                 ss << "VEN_" << std::uppercase << std::setfill('0') << std::setw(4) << std::hex << src->vendor_id
                     << "&DEV_" << std::setfill('0') << std::setw(4) << src->device_id;
                 dst.winDevId = ss.str();
 
                 dst.slot = GetWindowsPcieSlotInfo(src->bus, src->dev);
+                dst.lanes = GetWindowsPcieLanesInfo(src->bus, src->dev);
+            
             #else
+                
                 dst.slot = src->phy_slot ? std::atoi(src->phy_slot) : -1;
+
+                if (pci_cap* cap = pci_find_cap(src, PCI_CAP_ID_EXP, PCI_CAP_NORMAL); cap != nullptr) {
+                    uint16_t link = pci_read_word(src, cap->addr + PCI_EXP_LNKSTA);
+                    dst.lanes = (link & PCI_EXP_LNKSTA_WIDTH) >> 4;
+                }
+
             #endif
 
             if (dst.slot != -1)

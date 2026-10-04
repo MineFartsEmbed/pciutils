@@ -6,6 +6,9 @@
 #include <windows.h>
 #include <setupapi.h>
 #include <cfgmgr32.h>
+#include <initguid.h>
+#include <devpkey.h>
+#include <pciprop.h>
 
 namespace pciutils {
 
@@ -65,42 +68,78 @@ namespace pciutils {
             : (address >> 16) & 0xFFFF;
     }
 
-    inline int GetWindowsPcieSlotInfo(int bus, int dev) {
-
-        HDEVINFO hDevInfo = SetupDiGetClassDevsA(
+    inline HDEVINFO getHDEVINFO() {
+        return SetupDiGetClassDevsA(
             NULL, "PCI", NULL, 
             DIGCF_PRESENT | DIGCF_ALLCLASSES
         );
+    }
 
-        int finalSlotNumber = -1;
+    inline DEVINST FindDeviceInstance(HDEVINFO hDevInfo, int bus, int dev) {
+
         SP_DEVINFO_DATA devInfoData;
         devInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
 
         for (DWORD i = 0; SetupDiEnumDeviceInfo(hDevInfo, i, &devInfoData); ++i) {
-
-            if (bus != getBusNumber(hDevInfo, &devInfoData) ||
-                dev != getDevNumber(hDevInfo, &devInfoData)
-            ) continue;
-
-            DEVINST currentInstance = devInfoData.DevInst;
-            int depth = 0;
-
-            while (depth < 4) {
-
-                finalSlotNumber = getUINumber(currentInstance);
-                if (finalSlotNumber != -1) goto end_func;
-
-                if (CM_Get_Parent(&currentInstance, currentInstance, 0) != CR_SUCCESS)
-                    break;
-                
-                depth++;
-            }
-
+            if (bus == getBusNumber(hDevInfo, &devInfoData) &&
+                dev == getDevNumber(hDevInfo, &devInfoData)
+            ) return devInfoData.DevInst;
         }
 
-        end_func:
+        return 0;
+    }
+
+    inline int GetWindowsPcieSlotInfo(int bus, int dev) {
+
+        HDEVINFO hDevInfo = getHDEVINFO();
+        DEVINST currentInstance = FindDeviceInstance(hDevInfo, bus, dev);
+        
+        int finalSlotNumber = -1;
+
+        if (currentInstance != 0) {
+            for (int depth = 0; depth < 4; ++depth) {
+
+                finalSlotNumber = getUINumber(currentInstance);
+                if (finalSlotNumber != -1) break;
+
+                if (CM_Get_Parent(&currentInstance, currentInstance, 0) != CR_SUCCESS)
+                    break;                
+
+            }
+        }
+        
         SetupDiDestroyDeviceInfoList(hDevInfo);
         return finalSlotNumber;
+    }
+
+    inline int GetWindowsPcieLanesInfo(int bus, int dev) {
+
+        HDEVINFO hDevInfo = getHDEVINFO();
+        DEVINST devInst = FindDeviceInstance(hDevInfo, bus, dev);
+
+        int laneCount = -1;
+        if (devInst != 0) {
+
+            DEVPROPTYPE propType;
+            ULONG lanesValue = 0;
+            ULONG propSize = sizeof(lanesValue);
+
+            CONFIGRET cr = CM_Get_DevNode_PropertyW(
+                devInst,
+                &DEVPKEY_PciDevice_CurrentLinkWidth,
+                &propType,
+                reinterpret_cast<PBYTE>(&lanesValue),
+                &propSize,
+                0
+            );
+
+            if (cr == CR_SUCCESS)
+                laneCount = static_cast<int>(lanesValue);
+            
+        }
+
+        SetupDiDestroyDeviceInfoList(hDevInfo);
+        return laneCount;
     }
 
 }

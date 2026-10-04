@@ -181,6 +181,7 @@ struct pci_dev {
 
   int slot;
   std::string winDevId;
+  int lanes = -1;
 
 };
 
