@@ -117,6 +117,11 @@ namespace pciutils {
 
             #endif
 
+            std::sort(
+                local_list.begin(), local_list.end(), 
+                [](pci_dev a, pci_dev b) {return b.slot > a.slot;}
+            );
+
             if (dst.slot != -1)
                 local_list.push_back(dst);
         }
