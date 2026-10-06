@@ -89,29 +89,6 @@ namespace pciutils {
         return 0;
     }
 
-    inline int GetWindowsPcieSlotInfo(int bus, int dev) {
-
-        HDEVINFO hDevInfo = getHDEVINFO();
-        DEVINST currentInstance = FindDeviceInstance(hDevInfo, bus, dev);
-        
-        int finalSlotNumber = -1;
-
-        if (currentInstance != 0) {
-            for (int depth = 0; depth < 4; ++depth) {
-
-                finalSlotNumber = getUINumber(currentInstance);
-                if (finalSlotNumber != -1) break;
-
-                if (CM_Get_Parent(&currentInstance, currentInstance, 0) != CR_SUCCESS)
-                    break;                
-
-            }
-        }
-        
-        SetupDiDestroyDeviceInfoList(hDevInfo);
-        return finalSlotNumber;
-    }
-
     inline int GetWindowsPcieLanesInfo(int bus, int dev) {
 
         HDEVINFO hDevInfo = getHDEVINFO();

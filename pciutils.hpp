@@ -84,7 +84,7 @@ namespace pciutils {
 
         for (struct pci_dev *src = pacc->devices; src; src = src->next) {
 
-            pci_fill_info(src, PCI_FILL_IDENT | PCI_FILL_CLASS | PCI_FILL_PHYS_SLOT | PCI_FILL_IO_FLAGS | PCI_FILL_CAPS);
+            pci_fill_info(src, PCI_FILL_IDENT | PCI_FILL_CLASS | PCI_FILL_IO_FLAGS | PCI_FILL_CAPS);
 
             if (is_off(src->vendor_id, src->device_id)) continue;
             
@@ -94,26 +94,15 @@ namespace pciutils {
             dst.device_class = src->device_class;
             
             #ifdef _WIN32
-                dst.slot = GetWindowsPcieSlotInfo(src->bus, src->dev);
                 dst.lanes = GetWindowsPcieLanesInfo(src->bus, src->dev);
             #else
-                
-                dst.slot = src->phy_slot ? std::atoi(src->phy_slot) : -1;
-
                 if (pci_cap* cap = pci_find_cap(src, PCI_CAP_ID_EXP, PCI_CAP_NORMAL); cap != nullptr) {
                     uint16_t link = pci_read_word(src, cap->addr + PCI_EXP_LNKSTA);
                     dst.lanes = (link & PCI_EXP_LNKSTA_WIDTH) >> 4;
                 }
-
             #endif
 
-            std::sort(
-                local_list.begin(), local_list.end(), 
-                [](pci_dev a, pci_dev b) {return b.slot > a.slot;}
-            );
-
-            if (dst.slot != -1)
-                local_list.push_back(dst);
+            local_list.push_back(dst);
         }
 
         pci_cleanup(pacc);

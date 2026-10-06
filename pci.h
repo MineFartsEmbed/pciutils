@@ -179,7 +179,6 @@ struct pci_dev {
   struct pci_property *properties;	/* A linked list of extra properties */
   struct pci_cap *last_cap;		/* Last capability in the list */
 
-  int slot;
   int lanes = -1;
 
 };
