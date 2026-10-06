@@ -1,7 +1,11 @@
 #pragma once
 
 #include <vector>
+#include <fstream>
 #include <cstdlib>
+#include <filesystem>
+
+#include "pciutils/pci_ids.h"
 
 #ifdef _WIN32
 
@@ -15,6 +19,8 @@
 #endif
 
 #include "pci.h"
+
+namespace fs = std::filesystem;
 
 namespace pciutils {
 
@@ -68,6 +74,29 @@ namespace pciutils {
     using ::pci_set_name_list_path;
     using ::pci_id_cache_flush;
 
+    void pci_load_name_list2(pci_access* pacc) {
+        if (pci_load_name_list(pacc)) return;
+
+        #ifdef _WIN32
+            char temp_dir[MAX_PATH];
+            GetTempPathA(MAX_PATH, temp_dir);
+
+            fs::path temp_file = fs::path(temp_dir) / "baked_pci.ids";
+            
+            if (!fs::exists(temp_file)) { 
+                std::ofstream out(temp_file, std::ios::binary);
+                out.write(reinterpret_cast<const char*>(pci_ids), pci_ids_len);
+                out.close();
+            }
+            
+            pci_set_name_list_path(pacc, const_cast<char*>(temp_file.string().c_str()), 0);
+
+            pci_load_name_list(pacc);
+
+        #endif
+        
+    }
+
     template <typename... Ints>
     inline bool is_off(Ints... hexs) {
         return ((hexs == 0x0000 || hexs == 0xFFFF) && ...);
@@ -80,6 +109,7 @@ namespace pciutils {
 
         struct pci_access *pacc = pci_alloc();
         pci_init(pacc);
+        pci_load_name_list2(pacc);
         pci_scan_bus(pacc);
 
         for (struct pci_dev *src = pacc->devices; src; src = src->next) {
