@@ -2,9 +2,6 @@
 
 #include <vector>
 #include <cstdlib>
-#include <string>
-#include <sstream>
-#include <iomanip>
 
 #ifdef _WIN32
 
@@ -97,15 +94,8 @@ namespace pciutils {
             dst.device_class = src->device_class;
             
             #ifdef _WIN32
-                
-                std::stringstream ss;
-                ss << "VEN_" << std::uppercase << std::setfill('0') << std::setw(4) << std::hex << src->vendor_id
-                    << "&DEV_" << std::setfill('0') << std::setw(4) << src->device_id;
-                dst.winDevId = ss.str();
-
                 dst.slot = GetWindowsPcieSlotInfo(src->bus, src->dev);
                 dst.lanes = GetWindowsPcieLanesInfo(src->bus, src->dev);
-            
             #else
                 
                 dst.slot = src->phy_slot ? std::atoi(src->phy_slot) : -1;
