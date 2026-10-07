@@ -97,6 +97,18 @@ namespace pciutils {
         
     }
 
+    char* pci_lookup_name2(pci_access *pacc, pci_dev* dev, int flags) {
+        char buffer[512];
+        char* value = pci_lookup_name(
+            pacc,
+            buffer, sizeof(buffer),
+            flags | PCI_LOOKUP_NO_NUMBERS,
+            dev->vendor_id,
+            dev->device_id
+        );
+        return const_cast<char*>(strdup(value));
+    }
+
     template <typename... Ints>
     inline bool is_off(Ints... hexs) {
         return ((hexs == 0x0000 || hexs == 0xFFFF) && ...);
@@ -123,6 +135,9 @@ namespace pciutils {
             dst.vendor_id = src->vendor_id;
             dst.device_class = src->device_class;
             
+            dst.vendor_name = pci_lookup_name2(pacc, src, PCI_LOOKUP_VENDOR);
+            dst.device_name = pci_lookup_name2(pacc, src, PCI_LOOKUP_DEVICE);
+
             #ifdef _WIN32
                 dst.lanes = GetWindowsPcieLanesInfo(src->bus, src->dev);
             #else

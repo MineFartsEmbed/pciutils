@@ -181,6 +181,9 @@ struct pci_dev {
 
   int lanes = -1;
 
+  char* device_name;
+  char* vendor_name;
+
 };
 
 #define PCI_ADDR_IO_MASK (~(pciaddr_t) 0x3)
